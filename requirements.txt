@@ -1,0 +1,6 @@
+# PC端测试依赖（Android端由buildozer自动管理）
+kivy>=2.2.0
+pillow>=9.0.0
+pyzbar>=0.1.9
+reportlab>=3.6.0
+numpy>=1.21.0
