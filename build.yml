@@ -1,0 +1,65 @@
+name: Build Android APK
+on:
+  workflow_dispatch:    # 手动触发
+  push:
+    branches: [ main, master ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential ccache git zlib1g-dev libncurses5-dev \
+            libssl-dev libffi-dev openjdk-17-jdk autoconf libtool \
+            pkg-config cmake unzip zip wget curl cpio libbz2-dev \
+            libsqlite3-dev libreadline-dev liblzma-dev
+          python3 -m pip install --upgrade pip
+          pip3 install buildozer cython==0.29.37 python-for-android
+
+      - name: Cache buildozer downloads (SDK/NDK)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+          key: buildozer-cache-v1-${{ hashFiles('buildozer.spec') }}
+
+      - name: Build APK with buildozer
+        run: |
+          cd "${GITHUB_WORKSPACE}"
+          echo "y" | buildozer android debug
+        env:
+          ANDROIDSDK: /home/runner/.buildozer/android/platform/android-sdk
+          ANDROIDNDK: /home/runner/.buildozer/android/platform/android-ndk-r25b
+          ANDROIDAPI: "33"
+          ANDROIDMINAPI: "21"
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          PATH: ${{ env.JAVA_HOME }}/bin:$PATH
+
+      - name: Locate built APK
+        id: find_apk
+        run: |
+          APK_PATH=$(find bin -name "*.apk" | head -1)
+          echo "Found APK: $APK_PATH"
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          ls -lh "$APK_PATH"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BarcodePDFApp-apk
+          path: ${{ steps.find_apk.outputs.apk_path }}
